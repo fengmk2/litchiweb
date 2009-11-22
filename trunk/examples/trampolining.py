@@ -25,15 +25,26 @@ m.send(result) --------> r
                          v
                        print r
 
+
+
+       Some Comments
+• This is insane!
+• You now have two types of callables
+    • Normal Python functions/methods
+    • Suspendable coroutines
+• For the latter, you always have to use yield for
+  both calling and returning values
+• The code looks really weird at first glance
 """
 
 # A subroutine
 def add(x, y):
-    yield x + y
+    yield x + y # This is insane!
     
 # A function that calls a subroutine
 def main():
-    r = yield add(2, 2)
+    # The code looks really weird at first glance
+    r = yield add(2, 2) # you always have to use yield for both calling and returning values
     print r
     yield
 
