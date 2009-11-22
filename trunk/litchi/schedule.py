@@ -41,10 +41,32 @@ class _Task(object):
         self.taskid = _Task._taskid
         self.target = target
         self.sendval = None
+        self.trampolining_stack = []
         
     def run(self):
-        """Start the task"""
-        return self.target.send(self.sendval) # start coroutine
+        """Start the task.
+        Implementation coroutine trampolining, detail please see ../examples/trampolining.py
+        """
+        while True:
+            try:
+                result = self.target.send(self.sendval) # start coroutine
+                if isinstance(result, SystemCall):
+                    return result
+                if isinstance(result, GeneratorType): # coroutine trampolining
+                    self.trampolining_stack.append(self.target)
+                    self.sendval = None
+                    self.target = result
+                else:
+                    if not self.trampolining_stack: # hit top target, just return result
+                        return result
+                    # else, return result to parent target
+                    self.sendval = result
+                    self.target = self.trampolining_stack.pop()
+            except StopIteration:
+                if not self.trampolining_stack: # top target, just raise, normal exit
+                    raise
+                self.sendval = None
+                self.target = self.trampolining_stack.pop()
     
     def __str__(self):
         return 'Task %d %r' % (self.taskid, self)
