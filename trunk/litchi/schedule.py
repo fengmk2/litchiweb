@@ -53,6 +53,7 @@ class _Task(object):
                 if isinstance(result, SystemCall):
                     return result
                 if isinstance(result, GeneratorType): # coroutine trampolining
+                    # call suspendable coroutines
                     self.trampolining_stack.append(self.target)
                     self.sendval = None
                     self.target = result
