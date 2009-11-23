@@ -20,10 +20,13 @@ scheduler.mainloop()
      • yield is the only external interface
 
 """
+import time
 from types import GeneratorType
 from Queue import Queue
+import logging
 
-from litchi.systemcall import SystemCall
+from litchi.singleton import Singleton
+from litchi.systemcall import SystemCall, KillTask
 from litchi.io import get_hub
 
 
@@ -43,6 +46,12 @@ class _Task(object):
         self.sendval = None
         self.trampolining_stack = []
         
+    def close(self):
+        self.target.close()
+        for t in self.trampolining_stack:
+            t.close()
+        self.trampolining_stack = []
+    
     def run(self):
         """Start the task.
         Implementation coroutine trampolining, detail please see ../examples/trampolining.py
@@ -64,16 +73,17 @@ class _Task(object):
                     self.sendval = result
                     self.target = self.trampolining_stack.pop()
             except StopIteration:
+#                print 'tramp', self.trampolining_stack
                 if not self.trampolining_stack: # top target, just raise, normal exit
                     raise
                 self.sendval = None
                 self.target = self.trampolining_stack.pop()
     
-    def __str__(self):
-        return 'Task %d %r' % (self.taskid, self)
+    def __repr__(self):
+        return '<Task %d>' % self.taskid
 
 
-class Scheduler(object):
+class Scheduler(Singleton):
     """Schedule the task how to run."""
     
     def __init__(self):
@@ -82,6 +92,7 @@ class Scheduler(object):
         self.exit_waiting = {} # exit waiting tasks
         self.read_waiting = {} # read waiting tasks
         self.write_waiting = {}
+        self.sleep_waiting = {} # task sleeping
         self.hub = get_hub()
         
     def new(self, target):
@@ -102,11 +113,11 @@ class Scheduler(object):
         self.ready.put(task)
         
     def exit(self, task):
-        print '%s terminated' % task
         del self.taskmap[task.taskid] # remove from task dict, because the task is dead.
         # Notify other tasks waiting for exit
         for task in self.exit_waiting.pop(task.taskid, []):
             self.schedule(task)
+        logging.debug('%s terminated, %s, %s' % (task, self.taskmap, self.sleep_waiting))
     
     def wait_for_exit(self, task, wait_taskid):
         """task waitting another task to exit"""
@@ -117,38 +128,88 @@ class Scheduler(object):
     
     def wait_for_read(self, task, fd):
         self.read_waiting[fd] = task
-        self.hub.register_read(fd)
+        self.hub.register(fd, self.hub.READ)
     
     def wait_for_write(self, task, fd):
         self.write_waiting[fd] = task
-        self.hub.register_write(fd)
+        self.hub.register(fd, self.hub.WRITE)
     
     def _iopoll(self, timeout=None):
         """The optional timeout argument specifies a time-out as a floating point number in seconds. 
         When the timeout argument is omitted the function blocks until at least one file descriptor is ready. 
         A time-out value of zero specifies a poll and never blocks."""
+        error_tasks = []
         if self.read_waiting or self.write_waiting:
-            rlist, wlist = self.hub.poll(timeout)
+            eventpairs = self.hub.poll(timeout)
+            READ = self.hub.READ
+            WRITE = self.hub.WRITE
+            ERROR = self.hub.ERROR
+            for fd, events in eventpairs:
+                self.hub.unregister(fd)
+                if events & READ:
+                    self.schedule(self.read_waiting.pop(fd))
+                if events & WRITE:
+                    self.schedule(self.write_waiting.pop(fd))
+                if events & ERROR:
+                    if fd in self.read_waiting:
+                        error_tasks.append(self.read_waiting.pop(fd))
+                    if fd in self.write_waiting:
+                        error_tasks.append(self.write_waiting.pop(fd))
+        return error_tasks
+#            rlist, wlist = list(rlist), list(wlist)
 #            print rlist, wlist
-            for fd in rlist:
-                self.schedule(self.read_waiting.pop(fd))
-                self.hub.unregister_read(fd)
-            for fd in wlist:
-                self.schedule(self.write_waiting.pop(fd))
-                self.hub.unregister_write(fd)
+#            print self.read_waiting[rlist[0]].taskid
+#            for fd in r:
+#                self.hub.unregister_read(fd)
+#                self.schedule(self.read_waiting.pop(fd))
+#            for fd in w:
+#                self.hub.unregister_write(fd)
+#                self.schedule(self.write_waiting.pop(fd))
+#            for fd in e:
+#                self.hub.unregister_read(fd)
+#                self.hub.unregister_write(fd)
+#                task = self.write_waiting.pop(fd)
+#                task.close()
+#            print self.hub.read_waiting, self.hub.write_waiting
                 
     def _io_task(self):
         while True:
-            if self.ready.empty(): # only io waiting
-                self._iopoll(None) # blocks until at least one file descriptor is ready
+            if self.ready.qsize() == 1 and not self.sleep_waiting: # only io waiting
+                error_tasks = self._iopoll(None) # blocks until at least one file descriptor is ready
             else:
-                self._iopoll(0) # a poll and never blocks
+                error_tasks = self._iopoll(0) # a poll and never blocks
+            if error_tasks:
+                logging.debug('io error events: %s, %s, %s' % (error_tasks, self.taskmap, self.ready.qsize()))
+            if error_tasks:
+                for task in error_tasks:
+                    yield KillTask(task.taskid)
+            else:
+                yield
+    
+    def _check_sleeping_tasks(self):
+        while True:
             yield
+            if self.sleep_waiting:
+                now = time.time()
+                wakeups = []
+                for taskid, (start_time, seconds) in self.sleep_waiting.iteritems():
+                    if now - start_time > seconds:
+                        # wake up the task
+                        wakeups.append(taskid)
+                for taskid in wakeups:
+                    task = self.taskmap[taskid]
+                    self.schedule(task)
+                    del self.sleep_waiting[taskid]
+            yield
+    
+    def wait_for_sleep(self, task, seconds):
+        self.sleep_waiting[task.taskid] = (time.time(), seconds)
     
     def mainloop(self):
         """start main loop"""
         # schedule io task, launch I/O polls
         self.new(self._io_task())
+        self.new(self._check_sleeping_tasks())
         
         while self.taskmap:
             task = self.ready.get()
