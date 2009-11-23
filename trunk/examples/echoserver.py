@@ -74,7 +74,7 @@ def alive():
         print 'I am alive!'
         yield
         
-s = Scheduler()
+s = Scheduler.instance()
 #s.new(alive())
 s.new(server(45000))
 s.mainloop()

@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 """unit test for schedule.py
 """
+import time
 
 from litchi.schedule import Scheduler
-from litchi.systemcall import GetTaskid, NewTask, KillTask, WaitTask
+from litchi.systemcall import GetTaskid, NewTask, KillTask, WaitTask, Sleep
 
 
 def foo():
@@ -46,11 +47,18 @@ def wait():
     print 'Waiting for child %d finished' % child
     yield WaitTask(child)
     print 'Child Done'
+    
+def sleep():
+    print 'start sleep', time.time()
+    yield Sleep(2)
+    print 'wake up', time.time()
 
-
-s = Scheduler()
+import logging
+logging.root.setLevel(logging.DEBUG)
+s = Scheduler.instance()
 s.new(foo())
 s.new(bar())
 s.new(create_task())
 s.new(wait())
+s.new(sleep())
 s.mainloop()

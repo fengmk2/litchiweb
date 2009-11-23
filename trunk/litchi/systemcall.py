@@ -33,6 +33,18 @@ class SystemCall(object):
     def handle(self):
         raise NotImplementedError('MUST be implement by the child')
     
+class Sleep(SystemCall):
+    """Sleep Call, if seconds == 0, task will add to the end of schedule queue."""
+    def __init__(self, seconds):
+        super(Sleep, self).__init__()
+        self.seconds = seconds
+        
+    def handle(self):
+        if self.seconds <= 0:
+            self.scheduler.schedule(self.task)
+        else:
+            self.scheduler.wait_for_sleep(self.task, self.seconds)
+    
 class GetTaskid(SystemCall):
     """Get the related task id"""
     
@@ -62,7 +74,7 @@ class KillTask(SystemCall):
     def handle(self):
         task = self.scheduler.taskmap.get(self.taskid, None)
         if task:
-            task.target.close() # kill the target
+            task.close() # close task
             self.task.sendval = True # tell the caller if success kill
         else:
             self.task.sendval = False
