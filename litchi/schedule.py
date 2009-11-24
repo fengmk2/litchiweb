@@ -25,7 +25,7 @@ from types import GeneratorType
 import logging
 from collections import deque
 
-from litchi.singleton import Singleton
+from litchi.utils.singleton import Singleton
 from litchi.systemcall import SystemCall
 from litchi.io import get_hub
 
