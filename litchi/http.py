@@ -208,14 +208,14 @@ class HTTPRequest(object):
     are typically kept open in HTTP/1.1, multiple requests can be handled
     sequentially on a single connection.
     """
-    def __init__(self, method, uri, version="HTTP/1.0", headers=None,
-                 body=None, remote_ip=None, protocol=None, host=None,
+    def __init__(self, method, uri, version="HTTP/1.1", headers=None,
+                 body='', remote_ip=None, protocol=None, host=None,
                  files=None, connection=None):
         self.method = method
         self.uri = uri
         self.version = version
         self.headers = headers or HTTPHeaders()
-        self.body = body or ""
+        self.body = body
         if connection and connection.xheaders:
             self.remote_ip = headers.get("X-Real-Ip", remote_ip)
             self.protocol = headers.get("X-Scheme", protocol) or "http"
@@ -236,20 +236,11 @@ class HTTPRequest(object):
         for name, values in arguments.iteritems():
             values = [v for v in values if v]
             if values: self.arguments[name] = values
+        self.load_cookies_errors = False
 
     def supports_http_1_1(self):
         """Returns True if this request supports HTTP/1.1 semantics"""
         return self.version == "HTTP/1.1"
-
-    def write(self, chunk):
-        """Writes the given chunk to the response stream."""
-        assert isinstance(chunk, str)
-        self.connection.write(chunk)
-
-    def finish(self):
-        """Finishes this HTTP request on the open connection."""
-        self.connection.finish()
-        self._finish_time = time.time()
 
     def full_url(self):
         """Reconstructs the full URL for this request."""
@@ -268,6 +259,24 @@ class HTTPRequest(object):
         args = ", ".join(["%s=%r" % (n, getattr(self, n)) for n in attrs])
         return "%s(%s, headers=%s)" % (
             self.__class__.__name__, args, dict(self.headers))
+        
+    @property
+    def cookies(self):
+        """A dictionary of Cookie.Morsel objects."""
+        if not hasattr(self, "_cookies"):
+            self._cookies = Cookie.BaseCookie()
+            if "Cookie" in self.headers:
+                try:
+                    self._cookies.load(self.headers["Cookie"])
+                except:
+                    self.load_cookies_errors = True
+        return self._cookies
+
+    def get_cookie(self, name, default=None):
+        """Gets the value of the cookie with the given name, else default."""
+        if name in self.cookies:
+            return self.cookies[name].value
+        return default
 
 
 class HTTPHeaders(dict):
@@ -302,7 +311,7 @@ class HTTPReponse(object):
     default_charset = 'UTF-8'
     default_server = 'Litchi/0.1'
     
-    def __init__(self, body, status=httplib.OK, headers=None, content_type=default_content_type, request=None):
+    def __init__(self, body, request, status=httplib.OK, headers=None, content_type=default_content_type):
         self.body = body
         self.status = status
         self.headers = HTTPHeaders()
@@ -326,6 +335,8 @@ class HTTPReponse(object):
             self.headers['Content-Length'] = len(self.body)
         datas.extend(['\r\n%s: %s' % (n, v) for n, v in self.headers.iteritems()])
         # cookies
+        if self.request.load_cookies_errors: # client cookie raw data is error format.
+            self.clear_all_cookies()
         for cookie_dict in getattr(self, "_new_cookies", []):
             for cookie in cookie_dict.values():
                 datas.append("\r\nSet-Cookie: %s" % cookie.OutputString())
@@ -333,24 +344,6 @@ class HTTPReponse(object):
         # body
         datas.append(self.body)
         return ''.join(datas)
-    
-    @property
-    def cookies(self):
-        """A dictionary of Cookie.Morsel objects."""
-        if not hasattr(self, "_cookies"):
-            self._cookies = Cookie.BaseCookie()
-            if "Cookie" in self.request.headers:
-                try:
-                    self._cookies.load(self.request.headers["Cookie"])
-                except:
-                    self.clear_all_cookies()
-        return self._cookies
-
-    def get_cookie(self, name, default=None):
-        """Gets the value of the cookie with the given name, else default."""
-        if name in self.cookies:
-            return self.cookies[name].value
-        return default
 
     def set_cookie(self, name, value, path="/", domain=None, expires=None, expires_days=None):
         """Sets the given cookie name/value with the given options."""
@@ -381,5 +374,5 @@ class HTTPReponse(object):
 
     def clear_all_cookies(self):
         """Deletes all the cookies the user sent with this request."""
-        for name in self.cookies.iterkeys():
+        for name in self.request.cookies.iterkeys():
             self.clear_cookie(name)
