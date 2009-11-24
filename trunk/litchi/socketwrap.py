@@ -32,10 +32,12 @@ class Socket(object):
         yield Socket(_sock=client), addr
         
     def send(self, buffer):
+        sent = len(buffer)
         while buffer:
             yield WriteWait(self.sock)
-            len = self.sock.send(buffer)
-            buffer = buffer[len:]
+            length = self.sock.send(buffer)
+            buffer = buffer[length:]
+        yield sent
     
     def read_until(self, delimiter):
         """yield the result until socket read the given delimiter."""
@@ -46,26 +48,25 @@ class Socket(object):
                 yield self._consume(loc + len(delimiter))
                 break
             
-    def read_bytes(self, num_bytes):
+    def read_bytes(self, num_bytes, flags=0):
         while True:
-            yield self.recv()
             if len(self._read_buffer) >= num_bytes:
                 yield self._consume(num_bytes)
                 break
+            yield self.recv(flags=flags)
         
     def _consume(self, loc):
         result = self._read_buffer[:loc]
         self._read_buffer = self._read_buffer[loc:]
         return result
     
-    def recv(self, buffersize=65535):
+    def recv(self, buffersize=65535, flags=0):
         while True:
-#            print 'recv', self
             yield ReadWait(self.sock)
+#            self._read_buffer += self.sock.recv(buffersize, flags)
             self._read_buffer += self.sock.recv(buffersize)
             if self._read_buffer:
                 yield self._read_buffer
-            yield Sleep(0)
             
     def __repr__(self):
         try:

@@ -30,21 +30,22 @@ from litchi.systemcall import SystemCall
 from litchi.io import get_hub
 
 
-class _Task(object):
+class Task(object):
     """A task"""
     # use to create unique id
     _taskid = 0
     
-    def __init__(self, target):
+    def __init__(self, target, name):
         """Init the task with target.
         @param target: target must be a coroutine(Generator).
         """
         assert isinstance(target, GeneratorType), 'target must be a Coroutine(Generator)'
-        _Task._taskid += 1
-        self.taskid = _Task._taskid
+        Task._taskid += 1
+        self.taskid = Task._taskid
         self.target = target
         self.sendval = None
         self.trampolining_stack = []
+        self.name = name if name is not None else self.__class__.__name__
         
     def close(self):
         self.target.close()
@@ -80,7 +81,7 @@ class _Task(object):
                 self.target = self.trampolining_stack.pop()
     
     def __repr__(self):
-        return '<Task %d>' % self.taskid
+        return '<%s %d>' % (self.name, self.taskid)
 
 
 class _TaskQueue(object):
@@ -136,13 +137,13 @@ exit waitting: %r
 """ % (self.taskmap, self.ready, self.sleep_waiting, 
        self.read_waiting, self.write_waiting, self.exit_waiting) 
         
-    def new(self, target):
+    def new(self, target, taskname=None):
         """Create a new task, Task's factory method.
         @param target: target must be a coroutine(Generator).
         
         @return: the new task id.
         """
-        task = _Task(target)
+        task = Task(target, taskname)
         self.taskmap[task.taskid] = task
         self.schedule(task) # schedule the task to ready start
         return task.taskid
@@ -193,7 +194,7 @@ exit waitting: %r
         """The optional timeout argument specifies a time-out as a floating point number in seconds. 
         When the timeout argument is omitted the function blocks until at least one file descriptor is ready. 
         A time-out value of zero specifies a poll and never blocks."""
-        error_tasks = []
+        error_tasks, error_fds = [], []
         if self.read_waiting or self.write_waiting:
             eventpairs = self.hub.poll(timeout)
             READ = self.hub.READ
@@ -206,49 +207,51 @@ exit waitting: %r
                         error_tasks.append(self.read_waiting.pop(fd))
                     if fd in self.write_waiting:
                         error_tasks.append(self.write_waiting.pop(fd))
+                    error_fds.append((fd, '0x%X' % events))
                 else:
                     if events & READ:
                         self.schedule(self.read_waiting.pop(fd))
                     if events & WRITE:
                         self.schedule(self.write_waiting.pop(fd))
+        if error_tasks and self.debug:
+            logging.debug('io error events: %s\n%r' % (zip(error_tasks, error_fds), self))
+            raise 'stop'
         return error_tasks
                 
     def _io_task(self):
-        while True:
+        while self.read_waiting or self.write_waiting:
             if self.ready.qsize() == 1 and not self.sleep_waiting: # only io waiting
                 error_tasks = self._iopoll(None) # blocks until at least one file descriptor is ready
             else:
                 error_tasks = self._iopoll(0) # a poll and never blocks
             if error_tasks:
-                if self.debug:
-                    logging.debug('io error events: %s\n%r' % (error_tasks, self))
                 self.kill_tasks((t.taskid for t in error_tasks))
             yield
     
     def _check_sleeping_tasks(self):
         """Check sleeping tasks"""
-        while True:
-            if self.sleep_waiting:
-                now = time.time()
-                wakeups = []
-                for taskid, (start_time, seconds) in self.sleep_waiting.iteritems():
-                    if now - start_time > seconds:
-                        # wake up the task
-                        wakeups.append(taskid)
-                for taskid in wakeups:
-                    task = self.taskmap[taskid]
-                    self.schedule(task)
-                    del self.sleep_waiting[taskid]
+        while self.sleep_waiting:
+            now = time.time()
+            wakeups = []
+            for taskid, (start_time, seconds) in self.sleep_waiting.iteritems():
+                if now - start_time > seconds:
+                    # wake up the task
+                    wakeups.append(taskid)
+            for taskid in wakeups:
+                task = self.taskmap[taskid]
+                self.schedule(task)
+                del self.sleep_waiting[taskid]
             yield
     
     def wait_for_sleep(self, task, seconds):
+        if not self.sleep_waiting:
+            self.new(self._check_sleeping_tasks(), 'CheckSleepTask') # start sleep check
         self.sleep_waiting[task.taskid] = (time.time(), seconds)
     
     def mainloop(self):
         """start main loop"""
         # schedule io task, launch I/O polls
-        self.new(self._io_task())
-        self.new(self._check_sleeping_tasks())
+        self.new(self._io_task(), 'IOTask')
         
         while self.taskmap:
             task = self.ready.get()
