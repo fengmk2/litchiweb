@@ -22,11 +22,11 @@ scheduler.mainloop()
 """
 import time
 from types import GeneratorType
-from Queue import Queue
 import logging
+from collections import deque
 
 from litchi.singleton import Singleton
-from litchi.systemcall import SystemCall, KillTask
+from litchi.systemcall import SystemCall
 from litchi.io import get_hub
 
 
@@ -83,17 +83,58 @@ class _Task(object):
         return '<Task %d>' % self.taskid
 
 
+class _TaskQueue(object):
+    """"""
+    def __init__(self):
+        self.tasks = deque()
+        self.taskids = set()
+        
+    def put(self, task, first=False):
+        if first:
+            self.tasks.appendleft(task)
+        else:
+            self.tasks.append(task)
+        self.taskids.add(task.taskid)
+        
+    def get(self):
+        task = self.tasks.popleft()
+        self.taskids.remove(task.taskid)
+        return task
+    
+    def qsize(self):
+        return len(self.taskids)
+    
+    def __contains__(self, taskid):
+        return taskid in self.taskids
+    
+    def __repr__(self):
+        return '%r' % self.tasks
+
+
 class Scheduler(Singleton):
     """Schedule the task how to run."""
     
     def __init__(self):
-        self.ready = Queue() # the ready to run task queue
+        self.ready = _TaskQueue() # the ready to run task queue
         self.taskmap = {} # the task dict for use taskid to find match task quickly
         self.exit_waiting = {} # exit waiting tasks
         self.read_waiting = {} # read waiting tasks
         self.write_waiting = {}
         self.sleep_waiting = {} # task sleeping
         self.hub = get_hub()
+        self.debug = logging.root.level == logging.DEBUG
+        
+    def __repr__(self):
+        return """
+taskmap: %r
+ready: %r
+sleep: %r
+read waitting: %r
+write waitting: %r
+exit waitting: %r
+---------------------------------------------------------
+""" % (self.taskmap, self.ready, self.sleep_waiting, 
+       self.read_waiting, self.write_waiting, self.exit_waiting) 
         
     def new(self, target):
         """Create a new task, Task's factory method.
@@ -117,7 +158,8 @@ class Scheduler(Singleton):
         # Notify other tasks waiting for exit
         for task in self.exit_waiting.pop(task.taskid, []):
             self.schedule(task)
-        logging.debug('%s terminated, %s, %s' % (task, self.taskmap, self.sleep_waiting))
+        if self.debug:
+            logging.debug('%s terminated\n%r' % (task, self))
     
     def wait_for_exit(self, task, wait_taskid):
         """task waitting another task to exit"""
@@ -134,6 +176,19 @@ class Scheduler(Singleton):
         self.write_waiting[fd] = task
         self.hub.register(fd, self.hub.WRITE)
     
+    def kill_tasks(self, taskids):
+        """Kill tasks"""
+        killids = []
+        for taskid in taskids:
+            task = self.taskmap.get(taskid, None)
+            if task:
+                task.close() # close task
+                killids.append(taskid) # tell the caller if success kill
+                # not in the ready queue, add to, make sure the target raise StopIteration
+                if taskid not in self.ready: 
+                    self.schedule(task)
+        return killids
+    
     def _iopoll(self, timeout=None):
         """The optional timeout argument specifies a time-out as a floating point number in seconds. 
         When the timeout argument is omitted the function blocks until at least one file descriptor is ready. 
@@ -146,31 +201,17 @@ class Scheduler(Singleton):
             ERROR = self.hub.ERROR
             for fd, events in eventpairs:
                 self.hub.unregister(fd)
-                if events & READ:
-                    self.schedule(self.read_waiting.pop(fd))
-                if events & WRITE:
-                    self.schedule(self.write_waiting.pop(fd))
                 if events & ERROR:
                     if fd in self.read_waiting:
                         error_tasks.append(self.read_waiting.pop(fd))
                     if fd in self.write_waiting:
                         error_tasks.append(self.write_waiting.pop(fd))
+                else:
+                    if events & READ:
+                        self.schedule(self.read_waiting.pop(fd))
+                    if events & WRITE:
+                        self.schedule(self.write_waiting.pop(fd))
         return error_tasks
-#            rlist, wlist = list(rlist), list(wlist)
-#            print rlist, wlist
-#            print self.read_waiting[rlist[0]].taskid
-#            for fd in r:
-#                self.hub.unregister_read(fd)
-#                self.schedule(self.read_waiting.pop(fd))
-#            for fd in w:
-#                self.hub.unregister_write(fd)
-#                self.schedule(self.write_waiting.pop(fd))
-#            for fd in e:
-#                self.hub.unregister_read(fd)
-#                self.hub.unregister_write(fd)
-#                task = self.write_waiting.pop(fd)
-#                task.close()
-#            print self.hub.read_waiting, self.hub.write_waiting
                 
     def _io_task(self):
         while True:
@@ -179,16 +220,14 @@ class Scheduler(Singleton):
             else:
                 error_tasks = self._iopoll(0) # a poll and never blocks
             if error_tasks:
-                logging.debug('io error events: %s, %s, %s' % (error_tasks, self.taskmap, self.ready.qsize()))
-            if error_tasks:
-                for task in error_tasks:
-                    yield KillTask(task.taskid)
-            else:
-                yield
+                if self.debug:
+                    logging.debug('io error events: %s\n%r' % (error_tasks, self))
+                self.kill_tasks((t.taskid for t in error_tasks))
+            yield
     
     def _check_sleeping_tasks(self):
+        """Check sleeping tasks"""
         while True:
-            yield
             if self.sleep_waiting:
                 now = time.time()
                 wakeups = []

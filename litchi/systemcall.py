@@ -67,17 +67,14 @@ class NewTask(SystemCall):
         self.scheduler.schedule(self.task)
         
 class KillTask(SystemCall):
-    def __init__(self, taskid):
+    def __init__(self, taskids):
         super(KillTask, self).__init__()
-        self.taskid = taskid
+        if isinstance(taskids, int):
+            taskids = [taskids]
+        self.taskids = taskids
         
     def handle(self):
-        task = self.scheduler.taskmap.get(self.taskid, None)
-        if task:
-            task.close() # close task
-            self.task.sendval = True # tell the caller if success kill
-        else:
-            self.task.sendval = False
+        self.task.sendval = self.scheduler.kill_tasks(self.taskids)
         self.scheduler.schedule(self.task)
         
 class WaitTask(SystemCall):

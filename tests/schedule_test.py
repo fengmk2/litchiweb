@@ -49,9 +49,30 @@ def wait():
     print 'Child Done'
     
 def sleep():
-    print 'start sleep', time.time()
-    yield Sleep(2)
-    print 'wake up', time.time()
+    taskid = yield GetTaskid()
+    try:
+        print 'start sleep', time.time()
+        yield Sleep(2)
+        print 'wake up', time.time()
+    except StopIteration:
+        print 'I am be killed.', taskid
+
+def sleepkill():
+    taskid = yield GetTaskid()
+    try:
+        print taskid, 'start sleep', time.time()
+        yield Sleep(2)
+        print taskid, 'wake up', time.time()
+    finally:
+        print 'finally'
+        print 'I am be killed.', taskid
+        
+def sleeps(scheduler):
+    s1 = yield NewTask(sleep())
+    s2 = yield NewTask(sleepkill())
+    yield
+    print 'close', s2
+    scheduler.taskmap[s2].target.close()
 
 import logging
 logging.root.setLevel(logging.DEBUG)
@@ -60,5 +81,5 @@ s.new(foo())
 s.new(bar())
 s.new(create_task())
 s.new(wait())
-s.new(sleep())
+s.new(sleeps(s))
 s.mainloop()
