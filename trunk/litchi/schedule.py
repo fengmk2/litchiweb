@@ -215,11 +215,10 @@ exit waitting: %r
                         self.schedule(self.write_waiting.pop(fd))
         if error_tasks and self.debug:
             logging.debug('io error events: %s\n%r' % (zip(error_tasks, error_fds), self))
-            raise 'stop'
         return error_tasks
                 
     def _io_task(self):
-        while self.read_waiting or self.write_waiting:
+        while True:
             if self.ready.qsize() == 1 and not self.sleep_waiting: # only io waiting
                 error_tasks = self._iopoll(None) # blocks until at least one file descriptor is ready
             else:
