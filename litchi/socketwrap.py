@@ -6,7 +6,7 @@ Using the 'Coroutine Trampolining' magic.
 """
 from socket import socket, AF_INET, SOCK_STREAM
 
-from litchi.systemcall import ReadWait, WriteWait, Sleep
+from litchi.systemcall import ReadWait, WriteWait
 
 
 _socketmethods = (
@@ -42,11 +42,11 @@ class Socket(object):
     def read_until(self, delimiter):
         """yield the result until socket read the given delimiter."""
         while True:
-            yield self.recv()
             loc = self._read_buffer.find(delimiter)
             if loc != -1:
                 yield self._consume(loc + len(delimiter))
                 break
+            yield self.recv()
             
     def read_bytes(self, num_bytes, flags=0):
         while True:

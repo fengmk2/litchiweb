@@ -33,9 +33,6 @@ class Pool(object):
                 self.items.append(conn)
     
     def get(self):
-#        if self.connected_count == 0 and self.minsize > 0:
-#            for _ in range(self.minsize):
-#                yield self._connect()
         while True:
             if self.items:
                 conn = self.items.popleft()
@@ -51,9 +48,8 @@ class Pool(object):
     def put(self, conn):
         if len(self.items) < self.maxsize:
             self.items.append(conn)
+            if self.waittings:
+                self.waittings = False
+                yield Fire('free_conn')
         else:
-            self.connected_count -= 1
             conn.close()
-        if self.waittings:
-            self.waittings = False
-            yield Fire('free_conn')

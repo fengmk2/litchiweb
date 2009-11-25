@@ -41,7 +41,7 @@ assert id(a) == id(A())
             if cls.__instance is None:
                 # (Some exception may be thrown...)
                 # Initialize **the unique** instance
-                cls.__instance = object.__new__(cls, *args, **kargs)
+                cls.__instance = object.__new__(cls)
                 cls.__instance.__init__(*args, **kargs)
         finally:
             #  Exit from critical section whatever happens
