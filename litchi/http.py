@@ -79,11 +79,6 @@ class HTTPConnection(object):
         self.xheaders = xheaders
         self._request = None
 
-    def write(self, chunk):
-        yield self.stream.send(chunk)
-#        assert self._request, "Request closed"
-#        self.stream.write(chunk, self._on_write_complete)
-
     def _check_disconnect(self):
         if self.no_keep_alive:
             disconnect = True
@@ -125,8 +120,8 @@ class HTTPConnection(object):
                 if self._check_disconnect():
                     break
         finally:
-            logging.debug('closed')
             self.stream.close()
+            
 #            if content_length > self.stream.max_buffer_size:
 #                raise Exception("Content-Length too long")
 #            if headers.get("Expect") == "100-continue":
