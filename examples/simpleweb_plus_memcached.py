@@ -2,60 +2,44 @@
 # -*- coding: utf-8 -*-
 """A very simple small web
 """
-from random import randint
 from datetime import datetime
-import time
 
 from litchi.http import HTTPServer, HTTPReponse
 from litchi.schedule import Scheduler
-from litchi.db.mysql import connect
 from litchi.pool import Pool
+from litchi.memcached import AsyncClient
 
-pool = Pool(connect, 10, 50, host='10.20.238.182', port=3306, user='mercury', password='mercury123', db='webauth')
+
+pool = Pool(AsyncClient, 10, 50, servers=['127.0.0.1:11211'])
 
 count = 0
 debug = True
 
 def handler(request):
-    
     if debug:
         global count
         count += 1
         index = count
         print 'start-%d' % index, pool.connected_count, len(pool.free_items), pool.waittings
     conn = yield pool.get()
-    print 'get-%d' % index, pool.connected_count, len(pool.free_items), pool.waittings
-    cur = conn.cursor(True)
     try:
-        yield cur.execute("SELECT * FROM url_source where id>%s LIMIT 1", (10000 + randint(1000, 5000),))
-        
-        rs = yield cur.fetchall()
-#        print cur.description
-#        print rs
+        rs = yield conn.get('abc')
     finally:
-        cur.close()
         yield pool.put(conn)
-        # print r
-        # ...or...
-    #    for r in rs:
-    #        print r[8], r
-        #print cur.execute('delete from url_source where id=%s', (1686,))
-        #print conn.commit()
     if debug:
         print 'end-%d' % index, pool.connected_count, len(pool.free_items), pool.waittings
-    cookie = request.get_cookie('testcookie')
-    r = HTTPReponse("""Hello world, %s, cookie: %s, <br /> <br /> 
+   
+    r = HTTPReponse("""Hello world, %s<br /> <br /> 
         request: %s <br /> <br /> 
         data: %s <br /> <br /> 
         connected: %s, pool left: %s<br /> <br />
         Schedule: %s<br /> <br />  """ % \
-        (datetime.now(), cookie, 
+        (datetime.now(),
          request, 
-         rs[0], 
+         rs, 
          pool.connected_count, len(pool.free_items), 
          schedule), 
-         request=request)
-    r.set_cookie('testcookie', '%s' % time.time())
+         request=request, content_type='text/plain')
     
     yield r
     
@@ -65,8 +49,8 @@ def handler(request):
 httpserver = HTTPServer(handler)
 httpserver.listen(8081)
 schedule = Scheduler.instance()
-schedule.new(pool.init())
-schedule.new(httpserver.start())
+schedule.new(pool.init(), 'pool.init')
+schedule.new(httpserver.start(), 'httpserver')
 schedule.mainloop()
 
 """
