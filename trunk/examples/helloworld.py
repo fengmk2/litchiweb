@@ -11,7 +11,7 @@ def handler(request):
     
 httpserver = HTTPServer(handler)
 httpserver.listen(8081)
-s = Scheduler.instance()
+s = Scheduler.instance(debug=False)
 s.new(httpserver.start())
 s.mainloop()
 
