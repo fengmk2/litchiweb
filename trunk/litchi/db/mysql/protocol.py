@@ -27,7 +27,7 @@ from mysql.connector import errors
 from mysql.connector import utils
 from mysql.connector import protocol
 
-class MySQLAsyncProtocol(protocol.MySQLProtocol):
+class AsyncMySQLProtocol(protocol.MySQLProtocol):
     """Class handling the MySQL Protocol.
     
     MySQL v4.1 Client/Server Protocol is currently supported.
