@@ -115,7 +115,7 @@ class _TaskQueue(object):
 class Scheduler(Singleton):
     """Schedule the task how to run."""
     
-    def __init__(self):
+    def __init__(self, debug=False):
         self.ready = _TaskQueue() # the ready to run task queue
         self.taskmap = {} # the task dict for use taskid to find match task quickly
         self.exit_waiting = {} # exit waiting tasks
@@ -124,7 +124,9 @@ class Scheduler(Singleton):
         self.sleep_waiting = {} # task sleeping
         self.event_waitting = defaultdict(list) # event waitting list
         self.hub = get_hub()
-        self.debug = logging.root.level == logging.DEBUG
+        self.debug = debug
+        if self.debug:
+            logging.root.setLevel(logging.DEBUG)
         
     def __repr__(self):
         return """
