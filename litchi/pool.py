@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""A DB connections pool.
+"""A simple pool.
 """
 from collections import deque
 
@@ -8,7 +8,7 @@ from litchi.systemcall import Wait, Fire
 
 
 class Pool(object):
-    """A simple connection pool."""
+    """A simple pool."""
     
     FREE_CONN_EVENT = '__FREE_CONN_EVENT__'
     
@@ -20,13 +20,14 @@ class Pool(object):
         self.minsize = minsize
         self.maxsize = maxsize
         self.connected_count = 0
-        self.dbargs = args
-        self.dbkwargs = kwargs
+        self.args = args
+        self.kwargs = kwargs
         self.waittings = 0
+        self.wait_event = '%s_%s' % (self.FREE_CONN_EVENT, id(self))
     
     def _connect(self):
         self.connected_count += 1
-        conn = yield self.connect(*self.dbargs, **self.dbkwargs)
+        conn = yield self.connect(*self.args, **self.kwargs)
         yield conn
         
     def init(self):
@@ -42,18 +43,15 @@ class Pool(object):
             conn = yield self._connect()
         else:
             self.waittings += 1
-            conn = yield Wait(self.FREE_CONN_EVENT)
+            conn = yield Wait(self.wait_event)
         yield conn
     
     def put(self, conn):
         if self.waittings > 0:
             self.waittings -= 1
-            yield Fire(self.FREE_CONN_EVENT, conn)
+            yield Fire(self.wait_event, conn)
         else:
             if len(self.free_items) < self.maxsize:
-                self.free_items.append(conn)
-                if self.waittings:
-                    self.waittings = False
-                    yield Fire(self.FREE_CONN_EVENT)
+                self.free_items.appendleft(conn)
             else:
-                conn.close()
+                del conn

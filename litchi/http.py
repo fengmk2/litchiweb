@@ -41,7 +41,7 @@ class HTTPServer(object):
         self._socket.setblocking(0)
         
         self._socket.bind((address, port))
-        self._socket.listen(128)
+        self._socket.listen(65535)
 
     def start(self):
         while True:
@@ -52,7 +52,7 @@ class HTTPServer(object):
                     return
                 raise
 #            print 'new', connection, address, connection.fileno()
-            yield NewTask(HTTPConnection(connection, address, self.handle_target).handler())
+            yield NewTask(HTTPConnection(connection, address, self.handle_target).handler(), 'httphandler')
 #            if self.ssl_options is not None:
 #                assert ssl, "Python 2.6+ and OpenSSL required for SSL"
 #                connection = ssl.wrap_socket(
