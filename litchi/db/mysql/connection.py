@@ -27,9 +27,9 @@ from mysql.connector.connection import MySQLBaseConnection
 from mysql.connector import errors
 
 from litchi.socketwrap import Socket
-from litchi.db.mysql.protocol import MySQLAsyncProtocol
+from litchi.db.mysql.protocol import AsyncMySQLProtocol
 
-class MySQLBaseAsyncConnection(MySQLBaseConnection):
+class AsyncMySQLBaseConnection(MySQLBaseConnection):
     """Base class for MySQL Async Connections subclasses.
     
     Should not be used directly but overloaded, changing the
@@ -46,7 +46,7 @@ class MySQLBaseAsyncConnection(MySQLBaseConnection):
             self.protocol = prtcls(self)
         except:
 #            self.protocol = protocol.MySQLProtocol(self)
-            self.protocol = MySQLAsyncProtocol(self)
+            self.protocol = AsyncMySQLProtocol(self)
         self._set_socket_flags()
 
     def send(self, buf):
@@ -83,7 +83,7 @@ class MySQLBaseAsyncConnection(MySQLBaseConnection):
             self.protocol = prtcls(self, self.protocol.handshake)
         except:
 #            self.protocol = protocol.MySQLProtocol(self)
-            self.protocol = MySQLAsyncProtocol(self)
+            self.protocol = AsyncMySQLProtocol(self)
     
     def set_connection_timeout(self, timeout):
         self.connection_timeout = timeout
@@ -100,11 +100,11 @@ class MySQLBaseAsyncConnection(MySQLBaseConnection):
             self.socket_flags = flags
     
 
-class MySQLAsyncUnixConnection(MySQLBaseConnection):
+class AsyncMySQLUnixConnection(MySQLBaseConnection):
     """Opens a connection through the UNIX socket of the MySQL Server."""
     
     def __init__(self, prtcls=None,unix_socket='/tmp/mysql.sock'):
-        MySQLBaseConnection.__init__(self, prtcls=prtcls)
+        super(AsyncMySQLUnixConnection, self).__init__(prtcls=prtcls)
         self.unix_socket = unix_socket
         self.socket_flags = socket.MSG_WAITALL
         
@@ -122,11 +122,11 @@ class MySQLAsyncUnixConnection(MySQLBaseConnection):
         buf = (yield self.recv())[0]
         self.protocol.handle_handshake(buf)
 
-class MySQLAsyncTCPConnection(MySQLBaseAsyncConnection):
+class AsyncMySQLTCPConnection(AsyncMySQLBaseConnection):
     """Opens an Async TCP connection to the MySQL Server."""
     
     def __init__(self, prtcls=None, host='127.0.0.1', port=3306):
-        super(MySQLAsyncTCPConnection, self).__init__(prtcls=prtcls)
+        super(AsyncMySQLTCPConnection, self).__init__(prtcls=prtcls)
         self.server_host = host
         self.server_port = port
         

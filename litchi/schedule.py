@@ -122,7 +122,7 @@ class Scheduler(Singleton):
         self.read_waiting = {} # read waiting tasks
         self.write_waiting = {}
         self.sleep_waiting = {} # task sleeping
-        self.event_waitting = defaultdict(list) # event waitting list
+        self.event_waitting = defaultdict(deque) # event waitting list
         self.hub = get_hub()
         self.debug = debug
         if self.debug:
@@ -151,12 +151,12 @@ exit waitting: %r
         self.schedule(task) # schedule the task to ready start
         return task.taskid
         
-    def schedule(self, task):
+    def schedule(self, task, first=False):
         """Schedule a task to ready queue.
         @param task: A Task instance, create by scheduler.new(target).
         """
         if task.taskid not in self.ready:
-            self.ready.put(task)
+            self.ready.put(task, first)
         
     def exit(self, task):
         del self.taskmap[task.taskid] # remove from task dict, because the task is dead.
@@ -255,14 +255,16 @@ exit waitting: %r
         self.event_waitting[event].append(task)
         
     def fire_event(self, event, value):
-        if event not in self.event_waitting:
-            return
-        tasks = self.event_waitting.pop(event)
+#        if event not in self.event_waitting:
+#            return
+        tasks = self.event_waitting[event]
         if tasks:
-            print tasks
-            for task in tasks:
-                task.sendval = value
-                self.schedule(task)
+            task = tasks.popleft()
+            task.sendval = value
+            self.schedule(task, True)
+#            for task in tasks:
+#                task.sendval = value
+#                self.schedule(task)
     
     def mainloop(self):
         """start main loop"""

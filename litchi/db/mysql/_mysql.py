@@ -27,10 +27,10 @@ from mysql.connector.errors import InterfaceError
 from mysql.connector import errors
 from mysql.connector.mysql import MySQLBase
 
-from litchi.db.mysql.connection import MySQLAsyncUnixConnection, \
-    MySQLAsyncTCPConnection
+from litchi.db.mysql.connection import AsyncMySQLUnixConnection, \
+    AsyncMySQLTCPConnection
 from litchi.db.mysql import cursor
-from litchi.db.mysql.protocol import MySQLAsyncProtocol
+from litchi.db.mysql.protocol import AsyncMySQLProtocol
 
 
 class AsyncMySQLBase(MySQLBase):
@@ -41,12 +41,12 @@ class AsyncMySQLBase(MySQLBase):
         if self.unix_socket and os.name != 'nt':
 #            self.conn = MySQLUnixConnection(prtcls=prtcls,
 #                unix_socket=self.unix_socket)
-            self.conn = MySQLAsyncUnixConnection(prtcls=prtcls,
+            self.conn = AsyncMySQLUnixConnection(prtcls=prtcls,
                 unix_socket=self.unix_socket)
         else:
 #            self.conn = MySQLTCPConnection(prtcls=prtcls,
 #                host=self.server_host, port=self.server_port)
-            self.conn = MySQLAsyncTCPConnection(prtcls=prtcls,
+            self.conn = AsyncMySQLTCPConnection(prtcls=prtcls,
                 host=self.server_host, port=self.server_port)
         self.conn.set_connection_timeout(self.connection_timeout)
         
@@ -62,7 +62,7 @@ class AsyncMySQLBase(MySQLBase):
                 raise InterfaceError("MySQL Version %s is not supported." % version)
             else:
 #                self.conn.set_protocol(protocol.MySQLProtocol)
-                self.conn.set_protocol(MySQLAsyncProtocol)
+                self.conn.set_protocol(AsyncMySQLProtocol)
             self.protocol = self.conn.protocol
 #            self.protocol.do_auth(username=self.username, password=self.password,
 #                database=self.database)
@@ -176,7 +176,6 @@ class AsyncMySQL(AsyncMySQLBase):
         self.info_msg = ''
         
 #        self.connect(*args, **kwargs)
-#        yield self.connect(*args, **kwargs)
             
     def connect(self, dsn='', user='', password='', host='127.0.0.1',
             port=3306, db=None, database=None, use_unicode=True, charset='utf8', get_warnings=False,
@@ -291,13 +290,19 @@ class AsyncMySQL(AsyncMySQLBase):
         except:
             raise
     
-    def cursor(self):
+    def cursor(self, dictrow=False):
         if self.buffered:
-#            c = (cursor.MySQLCursorBuffered)(self)
-            c = (cursor.AsyncMySQLCursorBuffered)(self)
+            if dictrow:
+                c = (cursor.DictAsyncMySQLCursorBuffered)(self)
+            else:
+    #            c = (cursor.MySQLCursorBuffered)(self)
+                c = (cursor.AsyncMySQLCursorBuffered)(self)
         else:
-#            c = (cursor.MySQLCursor)(self)
-            c = (cursor.AsyncMySQLCursor)(self)
+            if dictrow:
+                c = (cursor.DictAsyncMySQLCursor)(self)
+            else:
+    #            c = (cursor.MySQLCursor)(self)
+                c = (cursor.AsyncMySQLCursor)(self)
         
         self.register_cursor(c)
         return c

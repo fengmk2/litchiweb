@@ -291,6 +291,25 @@ class AsyncMySQLCursor(MySQLCursor):
 #        return res
         yield res
 
+class DictAsyncMySQLCursor(AsyncMySQLCursor):
+    
+    def _row_to_python(self, rowdata, desc=None):
+        row = {}
+        try:
+            to_python = self.db.converter.to_python
+            if not desc:
+                desc = self.description
+            for idx,v in enumerate(rowdata):
+                flddsc = desc[idx]
+                row[flddsc[0]] = to_python(flddsc, v)
+        except StandardError, e:
+            raise errors.InterfaceError(
+                "Failed converting row to Python types; %s" % e)
+        else:
+            return row
+    
+        return None
+
 class AsyncMySQLCursorBuffered(AsyncMySQLCursor, MySQLCursorBuffered):
     """Cursor which fetches rows within execute()"""
     
@@ -312,3 +331,6 @@ class AsyncMySQLCursorBuffered(AsyncMySQLCursor, MySQLCursorBuffered):
         yield self._handle_eof(eof)
         self._next_row = 0
         self._have_result = True
+        
+class DictAsyncMySQLCursorBuffered(DictAsyncMySQLCursor, AsyncMySQLCursorBuffered):
+    pass

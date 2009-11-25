@@ -45,7 +45,7 @@ class GetTaskid(SystemCall):
     
     def handle(self):
         self.task.sendval = self.task.taskid
-        self.scheduler.schedule(self.task)
+        self.scheduler.schedule(self.task, True)
         
 class NewTask(SystemCall):
     def __init__(self, target):
@@ -68,7 +68,7 @@ class KillTask(SystemCall):
         
     def handle(self):
         self.task.sendval = self.scheduler.kill_tasks(self.taskids)
-        self.scheduler.schedule(self.task)
+        self.scheduler.schedule(self.task, True)
         
 class WaitTask(SystemCall):
     """
@@ -126,4 +126,4 @@ class Fire(SystemCall):
     
     def handle(self):
         self.scheduler.fire_event(self.event, self.value)
-        self.scheduler.schedule(self.task) # let task finish
+        self.scheduler.schedule(self.task, True) # let task finish
