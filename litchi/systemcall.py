@@ -26,17 +26,12 @@ from types import GeneratorType
 
 class SystemCall(object):
     """A system call base interface."""
-    def __init__(self):
-        self.task = None
-        self.scheduler = None
-    
     def handle(self):
         raise NotImplementedError('MUST be implement by the child')
     
 class Sleep(SystemCall):
     """Sleep Call, if seconds == 0, task will add to the end of schedule queue."""
-    def __init__(self, seconds):
-        super(Sleep, self).__init__()
+    def __init__(self, seconds=0):
         self.seconds = seconds
         
     def handle(self):
@@ -58,7 +53,6 @@ class NewTask(SystemCall):
         @param target: target must be a Coroutine(Generator)
         """
         assert isinstance(target, GeneratorType), 'target must be a Coroutine(Generator)'
-        super(NewTask, self).__init__()
         self.target = target
         
     def handle(self):
@@ -68,7 +62,6 @@ class NewTask(SystemCall):
         
 class KillTask(SystemCall):
     def __init__(self, taskids):
-        super(KillTask, self).__init__()
         if isinstance(taskids, int):
             taskids = [taskids]
         self.taskids = taskids
@@ -90,7 +83,6 @@ class WaitTask(SystemCall):
 
     """
     def __init__(self, wait_taskid):
-        super(WaitTask, self).__init__()
         self.wait_taskid = wait_taskid
         
     def handle(self):
@@ -104,7 +96,6 @@ class WaitTask(SystemCall):
 class ReadWait(SystemCall):
     """Waiting for file descriptor readable"""
     def __init__(self, f):
-        super(ReadWait, self).__init__()
         self.f = f
     
     def handle(self):
@@ -114,9 +105,25 @@ class ReadWait(SystemCall):
 class WriteWait(SystemCall):
     """Waiting for file descriptor writable"""
     def __init__(self, f):
-        super(WriteWait, self).__init__()
         self.f = f
     
     def handle(self):
         fd = self.f.fileno()
         self.scheduler.wait_for_write(self.task, fd)
+        
+class Wait(SystemCall):
+    """Wait for some event happened"""
+    def __init__(self, event):
+        self.event = event
+        
+    def handle(self):
+        self.scheduler.wait_for_event(self.event, self.task)
+        
+class Fire(SystemCall):
+    def __init__(self, event, value=None):
+        self.event = event
+        self.value = value
+    
+    def handle(self):
+        self.scheduler.fire_event(self.event, self.value)
+        self.scheduler.schedule(self.task) # let task finish

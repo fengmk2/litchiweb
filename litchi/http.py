@@ -120,8 +120,7 @@ class HTTPConnection(object):
                     self._parse_request_body(body_datas)
                 response = yield self.handle_target(self._request)
                 if not isinstance(response, HTTPReponse): # get string
-                    response = HTTPReponse(response)
-                response.request = self._request
+                    response = HTTPReponse(response, self._request)
                 yield self.stream.send(response.format())
                 if self._check_disconnect():
                     break

@@ -23,7 +23,7 @@ scheduler.mainloop()
 import time
 from types import GeneratorType
 import logging
-from collections import deque
+from collections import deque, defaultdict
 
 from litchi.utils.singleton import Singleton
 from litchi.systemcall import SystemCall
@@ -109,7 +109,7 @@ class _TaskQueue(object):
         return taskid in self.taskids
     
     def __repr__(self):
-        return '%r' % self.tasks
+        return '%r' % self.taskids
 
 
 class Scheduler(Singleton):
@@ -122,6 +122,7 @@ class Scheduler(Singleton):
         self.read_waiting = {} # read waiting tasks
         self.write_waiting = {}
         self.sleep_waiting = {} # task sleeping
+        self.event_waitting = defaultdict(list) # event waitting list
         self.hub = get_hub()
         self.debug = logging.root.level == logging.DEBUG
         
@@ -152,7 +153,8 @@ exit waitting: %r
         """Schedule a task to ready queue.
         @param task: A Task instance, create by scheduler.new(target).
         """
-        self.ready.put(task)
+        if task.taskid not in self.ready:
+            self.ready.put(task)
         
     def exit(self, task):
         del self.taskmap[task.taskid] # remove from task dict, because the task is dead.
@@ -246,6 +248,19 @@ exit waitting: %r
         if not self.sleep_waiting:
             self.new(self._check_sleeping_tasks(), 'CheckSleepTask') # start sleep check
         self.sleep_waiting[task.taskid] = (time.time(), seconds)
+        
+    def wait_for_event(self, event, task):
+        self.event_waitting[event].append(task)
+        
+    def fire_event(self, event, value):
+        if event not in self.event_waitting:
+            return
+        tasks = self.event_waitting.pop(event)
+        if tasks:
+            print tasks
+            for task in tasks:
+                task.sendval = value
+                self.schedule(task)
     
     def mainloop(self):
         """start main loop"""
