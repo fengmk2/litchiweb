@@ -3,7 +3,7 @@
 """dbpool module test
 """
 
-from litchi.db.dbpool import Pool
+from litchi.pool import Pool
 from litchi.db.mysql import connect
 from litchi.schedule import Scheduler
 from litchi.systemcall import WaitTask, NewTask, Sleep
@@ -13,7 +13,7 @@ def free_conn(pool, conn):
     yield Sleep(1)
     assert pool.waittings
     assert pool.connected_count == pool.maxsize
-    assert pool.FREE_CONN_EVENT in schedule.event_waitting
+    assert pool.wait_event in schedule.event_waitting
     yield pool.put(conn)
 
 def pool_test(minsize, maxsize):

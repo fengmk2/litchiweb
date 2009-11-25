@@ -136,9 +136,10 @@ sleep: %r
 read waitting: %r
 write waitting: %r
 exit waitting: %r
+event waitting: %r
 ---------------------------------------------------------
 """ % (self.taskmap, self.ready, self.sleep_waiting, 
-       self.read_waiting, self.write_waiting, self.exit_waiting) 
+       self.read_waiting, self.write_waiting, self.exit_waiting, self.event_waitting) 
         
     def new(self, target, taskname=None):
         """Create a new task, Task's factory method.
@@ -259,12 +260,13 @@ exit waitting: %r
 #            return
         tasks = self.event_waitting[event]
         if tasks:
+#            print tasks
             task = tasks.popleft()
             task.sendval = value
             self.schedule(task, True)
 #            for task in tasks:
 #                task.sendval = value
-#                self.schedule(task)
+#                self.schedule(task, True)
     
     def mainloop(self):
         """start main loop"""

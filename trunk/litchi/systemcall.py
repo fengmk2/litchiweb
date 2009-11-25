@@ -48,15 +48,16 @@ class GetTaskid(SystemCall):
         self.scheduler.schedule(self.task, True)
         
 class NewTask(SystemCall):
-    def __init__(self, target):
+    def __init__(self, target, name=None):
         """target create a new task call.
         @param target: target must be a Coroutine(Generator)
         """
         assert isinstance(target, GeneratorType), 'target must be a Coroutine(Generator)'
         self.target = target
+        self.name = name
         
     def handle(self):
-        taskid = self.scheduler.new(self.target)
+        taskid = self.scheduler.new(self.target, self.name)
         self.task.sendval = taskid # return the new task id to the caller
         self.scheduler.schedule(self.task)
         
