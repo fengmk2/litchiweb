@@ -236,7 +236,7 @@ class HTTPRequest(object):
         """Returns the value of the argument with the given name.
         The returned value is always utf-8 encode string.
         """
-        values = self.request.arguments.get(name, default)
+        values = self.arguments.get(name, default)
         if values is not default:
             value = values[-1]
             if strip: 
