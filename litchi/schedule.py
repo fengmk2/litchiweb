@@ -126,7 +126,10 @@ class Scheduler(Singleton):
         self.hub = get_hub()
         self.debug = debug
         if self.debug:
-            logging.root.setLevel(logging.DEBUG)
+            self.set_debug(debug)
+            
+    def set_debug(self, debug):
+        logging.root.setLevel(logging.DEBUG)
         
     def __repr__(self):
         return """
