@@ -224,7 +224,7 @@ event waitting: %r
                 
     def _io_task(self):
         while True:
-            if self.ready.qsize() == 1 and not self.sleep_waiting: # only io waiting
+            if self.ready and not self.sleep_waiting: # only io waiting
                 error_tasks = self._iopoll(None) # blocks until at least one file descriptor is ready
             else:
                 error_tasks = self._iopoll(0) # a poll and never blocks
