@@ -23,15 +23,18 @@ class Application(object):
             self.page_not_found = lambda x: (yield HTTPNotFound())
         
     def __call__(self, request):
-        handler = self.get_handler(request)
-        response = yield handler(request)
+        handler, kwargs = self.get_handler(request)
+        response = yield handler(request, **kwargs)
         yield response
         
     def get_handler(self, request):
         for match, handler in self.routes:
-            if match(request.path):
-                return handler
-        return self.page_not_found
+            m = match(request.path)
+            if m:
+                kwargs = m.groupdict()
+                kwargs = dict((k, v) for k, v in kwargs.iteritems() if v is not None)
+                return handler, kwargs
+        return self.page_not_found, {}
 
 
 class HTTPRedirect(HTTPReponse):
@@ -51,7 +54,7 @@ class HTTPNotFound(HTTPReponse):
         super(HTTPNotFound, self).__init__(*args, **kwargs)
         self.status = httplib.NOT_FOUND
         if not self.body:
-            self.body = 'Page not found.'
+            self.body = '<html><title>404</title><body>Page not found</body></html>'
 
 class HTTPForbidden(HTTPReponse):
     
