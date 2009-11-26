@@ -44,16 +44,16 @@ def handler(request):
     if debug:
         print 'end-%d' % index, pool.connected_count, len(pool.free_items), pool.waittings
     cookie = request.get_cookie('testcookie')
-    r = HTTPReponse("""Hello world, %s, cookie: %s, <br /> <br /> 
-        request: %s <br /> <br /> 
-        data: %s <br /> <br /> 
-        connected: %s, pool left: %s<br /> <br />
-        Schedule: %s<br /> <br />  """ % \
+    r = HTTPReponse("""Hello world, %s, cookie: %s,
+        request: %s
+        data: %s
+        connected: %s, pool left: %s
+        Schedule: %s""" % \
         (datetime.now(), cookie, 
          request, 
          rs[0], 
          pool.connected_count, len(pool.free_items), 
-         schedule))
+         schedule), 'text/plain')
     r.set_cookie('testcookie', '%s' % time.time())
     
     yield r

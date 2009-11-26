@@ -4,7 +4,7 @@
 """
 from datetime import datetime
 
-from litchi.http import HTTPServer, HTTPReponse
+from litchi.http import HTTPServer
 from litchi.schedule import Scheduler
 from litchi.utils.memcache import Client
 
@@ -24,14 +24,14 @@ def handler(request):
     if debug:
         print 'end-%d' % index
    
-    r = HTTPReponse("""Hello world, %s<br /> <br /> 
-        request: %s <br /> <br /> 
-        data: %s <br /> <br /> 
-        Schedule: %s<br /> <br />  """ % \
+    r = """Hello world, %s
+        request: %s
+        data: %s
+        Schedule: %s""" % \
         (datetime.now(),
          request, 
          rs, 
-         schedule), content_type='text/plain')
+         schedule), 'text/plain'
     
     yield r
     

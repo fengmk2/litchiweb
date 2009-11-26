@@ -19,6 +19,8 @@ class Application(object):
         self.settings = settings
         if 'page_not_found' in settings:
             self.page_not_found = settings['page_not_found']
+        else:
+            self.page_not_found = lambda x: (yield HTTPNotFound())
         
     def __call__(self, request):
         handler = self.get_handler(request)
@@ -30,15 +32,12 @@ class Application(object):
             if match(request.path):
                 return handler
         return self.page_not_found
-            
-    def page_not_found(self, request):
-        yield HTTPReponse('Page not found.', 404)
 
 
 class HTTPRedirect(HTTPReponse):
     
     def __init__(self, redirect_url):
-        super(HTTPRedirect, self).__init__('', httplib.FOUND, {'Location': redirect_url})
+        super(HTTPRedirect, self).__init__(headers={'Location': redirect_url}, status=httplib.FOUND)
 
 class HttpPermanentRedirect(HTTPRedirect):
     
@@ -51,6 +50,8 @@ class HTTPNotFound(HTTPReponse):
     def __init__(self, *args, **kwargs):
         super(HTTPNotFound, self).__init__(*args, **kwargs)
         self.status = httplib.NOT_FOUND
+        if not self.body:
+            self.body = 'Page not found.'
 
 class HTTPForbidden(HTTPReponse):
     

@@ -4,7 +4,7 @@
 """
 from datetime import datetime
 
-from litchi.http import HTTPServer, HTTPReponse
+from litchi.http import HTTPServer
 from litchi.schedule import Scheduler
 from litchi.pool import Pool
 from litchi.memcached import AsyncClient
@@ -29,7 +29,7 @@ def handler(request):
     if debug:
         print 'end-%d' % index, pool.connected_count, len(pool.free_items), pool.waittings
    
-    r = HTTPReponse("""Hello world, %s<br /> <br /> 
+    r = """Hello world, %s<br /> <br /> 
         request: %s <br /> <br /> 
         data: %s <br /> <br /> 
         connected: %s, pool left: %s<br /> <br />
@@ -38,7 +38,7 @@ def handler(request):
          request, 
          rs, 
          pool.connected_count, len(pool.free_items), 
-         schedule), content_type='text/plain')
+         schedule), 'text/plain'
     
     yield r
     
