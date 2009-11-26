@@ -34,31 +34,25 @@ class EventHub(object):
         
     def unregister(self, fd):
         del self.fds[fd]
-            
-#    def register_read(self, fd):
-#        self.read_waiting.add(fd)
-#        
-#    def unregister_read(self, fd):
-#        if fd in self.read_waiting:
-#            self.read_waiting.remove(fd)
-#            return True
-#        return False
-#    
-#    def register_write(self, fd):
-#        self.write_waiting.add(fd)
-#        
-#    def unregister_write(self, fd):
-#        if fd in self.write_waiting:
-#            self.write_waiting.remove(fd)
-#            return True
-#        return False
     
     
-#class SelectEventHub(EventHub):
-#    
-#    def poll(self, timeout=0):
-#        r, w, _ = select.select(self.read_waiting, self.write_waiting, [], timeout)
-#        return r, w
+class SelectEventHub(EventHub):
+    
+    def __init__(self):
+        super(SelectEventHub, self).__init__()
+        
+    def poll(self, timeout=0):
+        reads = (fd for fd, events in self.fds.iteritems() if events & self.READ)
+        writes = (fd for fd, events in self.fds.iteritems() if events & self.WRITE)
+        r, w, e = select.select(reads, writes, self.fds, timeout)
+        eventpairs = []
+        for fd in r:
+            eventpairs.append((fd, self.READ))
+        for fd in w:
+            eventpairs.append((fd, self.WRITE))
+        for fd in e:
+            eventpairs.append((fd, self.ERROR))
+        return eventpairs
     
     
 class EPollEventHub(EventHub):
@@ -73,16 +67,6 @@ class EPollEventHub(EventHub):
         if timeout is None:
             timeout = -1
         return self.epoll.poll(timeout)
-#        r, w, e = [], [], []
-#        for fd, events in eventpairs:
-#            if events & self.READ: # read ready
-#                r.append(fd)
-#            if events & self.WRITE: # write ready
-#                w.append(fd)
-#            if events & self.ERROR: # write ready
-#                e.append(fd)
-#                print fd, '%x' % events
-#        return r, w, e
     
     def register(self, fd, events):
         if fd not in self.fds:
@@ -94,25 +78,6 @@ class EPollEventHub(EventHub):
     def unregister(self, fd):
         super(EPollEventHub, self).unregister(fd)
         self.epoll.unregister(fd)
-
-#    def register_write(self, fd):
-#        if fd not in self.read_waiting and fd not in self.write_waiting:
-#            self.epoll.register(fd, self.WRITE | self.ERROR)
-#        else:
-#            self.epoll.modify(fd, self.WRITE | self.ERROR)
-#        super(EPollEventHub, self).register_write(fd)
-#    
-#    def unregister_read(self, fd):
-#        if super(EPollEventHub, self).unregister_read(fd):
-#            self.epoll.unregister(fd)
-#            return True
-#        return False
-#        
-#    def unregister_write(self, fd):
-#        if super(EPollEventHub, self).unregister_write(fd):
-#            self.epoll.unregister(fd)
-#            return True
-#        return False
         
         
 def get_hub():
