@@ -115,7 +115,9 @@ class HTTPConnection(object):
                     self._parse_request_body(body_datas)
                 response = yield self.handle_target(self._request)
                 if not isinstance(response, HTTPReponse): # get string
-                    response = HTTPReponse(response, self._request)
+                    response = HTTPReponse(response, request=self._request)
+                elif response.request is None:
+                    response.request = self._request
                 yield self.stream.send(response.format())
                 if self._check_disconnect():
                     break
@@ -316,7 +318,7 @@ class HTTPReponse(object):
     default_charset = 'UTF-8'
     default_server = 'Litchi/0.1'
     
-    def __init__(self, body, request, status=httplib.OK, headers=None, content_type=default_content_type):
+    def __init__(self, body, status=httplib.OK, headers=None, content_type=default_content_type, request=None):
         self.body = body
         self.status = status
         self.headers = HTTPHeaders()
