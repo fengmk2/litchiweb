@@ -231,7 +231,18 @@ class HTTPRequest(object):
             values = [v for v in values if v]
             if values: self.arguments[name] = values
         self.load_cookies_errors = False
-
+    
+    def get_argument(self, name, default=None, strip=True):
+        """Returns the value of the argument with the given name.
+        The returned value is always utf-8 encode string.
+        """
+        values = self.request.arguments.get(name, default)
+        if values is not default:
+            value = values[-1]
+            if strip: 
+                value = value.strip()
+        return value
+    
     def supports_http_1_1(self):
         """Returns True if this request supports HTTP/1.1 semantics"""
         return self.version == "HTTP/1.1"
