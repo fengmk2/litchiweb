@@ -60,11 +60,11 @@ class Socket(object):
         self._read_buffer = self._read_buffer[loc:]
         return result
     
-    def recv(self, buffersize=8192, flags=0):
+    def recv(self, size=8192, flags=0):
         while True:
             yield ReadWait(self.sock)
-#            self._read_buffer += self.sock.recv(buffersize, flags)
-            self._read_buffer += self.sock.recv(buffersize)
+#            self._read_buffer += self.sock.recv(size, flags)
+            self._read_buffer += self.sock.recv(size)
             if self._read_buffer:
                 yield self._read_buffer
             

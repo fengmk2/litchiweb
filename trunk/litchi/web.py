@@ -42,10 +42,10 @@ class HTTPRedirect(HTTPReponse):
     def __init__(self, redirect_url):
         super(HTTPRedirect, self).__init__(headers={'Location': redirect_url}, status=httplib.FOUND)
 
-class HttpPermanentRedirect(HTTPRedirect):
+class HTTPPermanentRedirect(HTTPRedirect):
     
     def __init__(self, *args, **kwargs):
-        super(HttpPermanentRedirect, self).__init__(*args, **kwargs)
+        super(HTTPPermanentRedirect, self).__init__(*args, **kwargs)
         self.status = httplib.MOVED_PERMANENTLY
 
 class HTTPNotFound(HTTPReponse):

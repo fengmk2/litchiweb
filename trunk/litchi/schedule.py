@@ -102,7 +102,7 @@ class _TaskQueue(object):
         self.taskids.remove(task.taskid)
         return task
     
-    def qsize(self):
+    def __len__(self):
         return len(self.taskids)
     
     def __contains__(self, taskid):
@@ -255,7 +255,7 @@ event waitting: %r
             self.new(self._check_sleeping_tasks(), 'CheckSleepTask') # start sleep check
         self.sleep_waiting[task.taskid] = (time.time(), seconds)
         
-    def wait_for_event(self, event, task):
+    def wait_for_event(self, task, event):
         self.event_waitting[event].append(task)
         
     def fire_event(self, event, value):
