@@ -53,8 +53,7 @@ def handler(request):
          request, 
          rs[0], 
          pool.connected_count, len(pool.free_items), 
-         schedule), 
-         request=request)
+         schedule))
     r.set_cookie('testcookie', '%s' % time.time())
     
     yield r

@@ -31,8 +31,7 @@ def handler(request):
         (datetime.now(),
          request, 
          rs, 
-         schedule), 
-         request=request, content_type='text/plain')
+         schedule), content_type='text/plain')
     
     yield r
     

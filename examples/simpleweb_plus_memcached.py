@@ -38,8 +38,7 @@ def handler(request):
          request, 
          rs, 
          pool.connected_count, len(pool.free_items), 
-         schedule), 
-         request=request, content_type='text/plain')
+         schedule), content_type='text/plain')
     
     yield r
     
