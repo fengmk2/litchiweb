@@ -5,6 +5,7 @@
 from collections import deque
 
 from litchi.systemcall import Wait, Fire
+from litchi.schedule import Scheduler
 
 
 class Pool(object):
@@ -24,6 +25,9 @@ class Pool(object):
         self.kwargs = kwargs
         self.waittings = 0
         self.wait_event = '%s_%s' % (self.FREE_CONN_EVENT, id(self))
+        
+        # init pool
+        Scheduler.instance().new(self.init(), 'PoolInit')
     
     def _connect(self):
         self.connected_count += 1
