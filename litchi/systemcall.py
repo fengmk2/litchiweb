@@ -118,7 +118,7 @@ class Wait(SystemCall):
         self.event = event
         
     def handle(self):
-        self.scheduler.wait_for_event(self.event, self.task)
+        self.scheduler.wait_for_event(self.task, self.event)
         
 class Fire(SystemCall):
     def __init__(self, event, value=None):
