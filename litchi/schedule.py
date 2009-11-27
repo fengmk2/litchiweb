@@ -129,6 +129,7 @@ class Scheduler(Singleton):
             self.set_debug(debug)
             
     def set_debug(self, debug):
+        self.debug = debug
         logging.root.setLevel(logging.DEBUG)
         
     def __repr__(self):
@@ -227,7 +228,7 @@ event waitting: %r
                 
     def _io_task(self):
         while True:
-            if self.ready and not self.sleep_waiting: # only io waiting
+            if len(self.ready) == 0 and not self.sleep_waiting: # only io waiting
                 error_tasks = self._iopoll(None) # blocks until at least one file descriptor is ready
             else:
                 error_tasks = self._iopoll(0) # a poll and never blocks
