@@ -11,10 +11,10 @@ from litchi.schedule import Scheduler
 from litchi.db.mysql import connect
 from litchi.pool import Pool
 
-pool = Pool(connect, 10, 50, host='10.20.238.182', port=3306, user='mercury', password='mercury123', db='webauth')
+pool = Pool(connect, 50, 50, host='10.20.238.182', port=3306, user='mercury', password='mercury123', db='webauth')
 
 count = 0
-debug = True
+debug = False
 
 def handler(request):
     
@@ -24,21 +24,15 @@ def handler(request):
         index = count
         print 'start-%d' % index, pool.connected_count, len(pool.free_items), pool.waittings
     conn = yield pool.get()
-    print 'get-%d' % index, pool.connected_count, len(pool.free_items), pool.waittings
-    cur = conn.cursor(True)
+    if debug:
+        print 'get-%d' % index, pool.connected_count, len(pool.free_items), pool.waittings
+    
     try:
-        yield cur.execute("SELECT * FROM url_source where id>%s LIMIT 1", (10000 + randint(1000, 5000),))
-        
-        rs = yield cur.fetchall()
-#        print cur.description
-#        print rs
+        with conn.cursor(True) as cur:
+            yield cur.execute("SELECT * FROM url_source where id>%s LIMIT 1", (10000 + randint(1000, 5000),))
+            rs = yield cur.fetchall()
     finally:
-        cur.close()
         yield pool.put(conn)
-        # print r
-        # ...or...
-    #    for r in rs:
-    #        print r[8], r
         #print cur.execute('delete from url_source where id=%s', (1686,))
         #print conn.commit()
     if debug:

@@ -9,13 +9,15 @@ port = 8082
 
 def handler(request):
     yield 'Hello world %s' % port
-    
-httpserver = HTTPServer(handler)
-httpserver.listen(port)
-s = Scheduler.instance(debug=False)
-s.new(httpserver.start())
-s.mainloop()
 
+def main():
+    httpserver = HTTPServer(handler)
+    httpserver.listen(port)
+    s = Scheduler.instance(debug=False)
+    s.new(httpserver.start())
+    s.mainloop()
+
+main()
 
 """
 TEST:
