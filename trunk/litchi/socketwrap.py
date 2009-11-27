@@ -4,7 +4,7 @@
 
 Using the 'Coroutine Trampolining' magic.
 """
-from socket import socket, AF_INET, SOCK_STREAM
+import socket
 
 from litchi.systemcall import ReadWait, WriteWait
 
@@ -18,13 +18,14 @@ _socketmethods = (
 
 class Socket(object):
     """A non-blocking socket warp class. It only support TCP, not work at UDP currently."""
-    def __init__(self, family=AF_INET, type=SOCK_STREAM, proto=0, _sock=None):
+    def __init__(self, family=socket.AF_INET, type=socket.SOCK_STREAM, proto=0, _sock=None):
         if _sock is not None:
             self.sock = _sock
         else:
-            self.sock = socket(family, type, proto)
+            self.sock = socket.socket(family, type, proto)
         self.sock.setblocking(0)
         self._read_buffer = ''
+        self
         
     def accept(self):
         yield ReadWait(self.sock)
@@ -61,12 +62,12 @@ class Socket(object):
         return result
     
     def recv(self, size=8192, flags=0):
-        while True:
-            yield ReadWait(self.sock)
+        yield ReadWait(self.sock)
 #            self._read_buffer += self.sock.recv(size, flags)
-            self._read_buffer += self.sock.recv(size)
-            if self._read_buffer:
-                yield self._read_buffer
+        self._read_buffer += self.sock.recv(size)
+        yield self._read_buffer
+#            if self._read_buffer:
+#                yield self._read_buffer
             
     def __repr__(self):
         try:
@@ -94,7 +95,7 @@ class Socket(object):
     proto = property(lambda self: self._sock.proto, doc="the socket protocol")
 
     _s = ("def %s(self, *args): return self.sock.%s(*args)\n\n"
-          "%s.__doc__ = socket.%s.__doc__\n")
+          "%s.__doc__ = socket.socket.%s.__doc__\n")
     for _m in _socketmethods:
         exec _s % (_m, _m, _m, _m)
     del _m, _s
