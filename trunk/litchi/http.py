@@ -3,8 +3,8 @@
 """http server
 """
 
+import os
 import socket
-import fcntl
 import errno
 import urlparse
 import time
@@ -31,13 +31,15 @@ class HTTPServer(object):
     def listen(self, port, address=""):
         assert not self._socket
         self._socket = Socket()
-#         Make a file descriptor close-on-exec.
-        flags = fcntl.fcntl(self._socket.fileno(), fcntl.F_GETFD)
-        flags |= fcntl.FD_CLOEXEC
-        fcntl.fcntl(self._socket.fileno(), fcntl.F_SETFD, flags)
+        if os.name != 'nt':
+            # Make a file descriptor close-on-exec.
+            import fcntl
+            flags = fcntl.fcntl(self._socket.fileno(), fcntl.F_GETFD)
+            flags |= fcntl.FD_CLOEXEC
+            fcntl.fcntl(self._socket.fileno(), fcntl.F_SETFD, flags)
         # reuse address
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) 
-#         set non blocking
+        # set non blocking
         self._socket.setblocking(0)
         
         self._socket.bind((address, port))
@@ -51,7 +53,7 @@ class HTTPServer(object):
                 if e[0] in (errno.EWOULDBLOCK, errno.EAGAIN): # omit Operation would block and Try again error
                     return
                 raise
-#            print 'new', connection, address, connection.fileno()
+            # print 'new', connection, address, connection.fileno()
             yield NewTask(HTTPConnection(connection, address, self.handle_target).handler(), 'httphandler')
 #            if self.ssl_options is not None:
 #                assert ssl, "Python 2.6+ and OpenSSL required for SSL"
@@ -208,7 +210,7 @@ class HTTPRequest(object):
     are typically kept open in HTTP/1.1, multiple requests can be handled
     sequentially on a single connection.
     """
-    def __init__(self, method, uri, version="HTTP/1.1", headers=None,
+    def __init__(self, method, uri, headers=None, version="HTTP/1.1",
                  body='', remote_ip=None, protocol=None, host=None,
                  files=None, connection=None):
         self.method = method
