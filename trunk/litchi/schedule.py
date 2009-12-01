@@ -20,6 +20,7 @@ scheduler.mainloop()
      • yield is the only external interface
 
 """
+import sys
 import time
 from types import GeneratorType
 import logging
@@ -44,6 +45,7 @@ class Task(object):
         self.taskid = Task._taskid
         self.target = target
         self.sendval = None
+        self.error = None
         self.trampolining_stack = []
         self.name = name if name is not None else self.__class__.__name__
         
@@ -59,7 +61,11 @@ class Task(object):
         """
         while True:
             try:
-                result = self.target.send(self.sendval) # start coroutine
+                if self.error is not None:
+                    result = self.target.throw(*self.error)
+                else:
+                    result = self.target.send(self.sendval) # start coroutine
+                self.error = None
                 if isinstance(result, SystemCall):
                     return result
                 if isinstance(result, GeneratorType): # coroutine trampolining
@@ -78,6 +84,11 @@ class Task(object):
                 if not self.trampolining_stack: # top target, just raise, normal exit
                     raise
                 self.sendval = None
+                self.target = self.trampolining_stack.pop()
+            except: # support try .. finally..
+                if not self.trampolining_stack:
+                    raise
+                self.error = sys.exc_info()
                 self.target = self.trampolining_stack.pop()
     
     def __repr__(self):
@@ -272,8 +283,12 @@ event waitting: %r
 #                task.sendval = value
 #                self.schedule(task, True)
     
-    def mainloop(self):
-        """start main loop"""
+    def mainloop(self, exception_handler=None):
+        """start main loop
+        exception_handler: exception hanlder, if exception raise, will pass sys.exc_info() info to exception_handler;
+            if exception_handler return True, mainloop will let ignore the exception. 
+            Otherwise, mainloop raise the exception.
+        """
         # schedule io task, launch I/O polls
         self.new(self._io_task(), 'IOTask')
         
@@ -285,8 +300,16 @@ event waitting: %r
                     result.task = task
                     result.scheduler = self
                     result.handle()
-                    continue
+                else:
+                    self.schedule(task)
             except StopIteration:
                 self.exit(task)
                 continue
-            self.schedule(task)
+            except KeyboardInterrupt:
+                raise
+            except:
+                if exception_handler and exception_handler(*sys.exc_info()):
+                    self.exit(task)
+                else:
+                    raise
+            
