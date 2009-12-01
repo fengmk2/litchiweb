@@ -54,7 +54,8 @@ class HTTPServer(object):
                     return
                 raise
             # print 'new', connection, address, connection.fileno()
-            yield NewTask(HTTPConnection(connection, address, self.handle_target).handler(), 'httphandler')
+            yield NewTask(HTTPConnection(connection, address, self.handle_target, 
+                                         xheaders=self.xheaders).handler(), 'httphandler')
 #            if self.ssl_options is not None:
 #                assert ssl, "Python 2.6+ and OpenSSL required for SSL"
 #                connection = ssl.wrap_socket(

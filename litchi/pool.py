@@ -59,3 +59,7 @@ class Pool(object):
                 self.free_items.appendleft(conn)
             else:
                 del conn
+                
+    def __repr__(self):
+        return '<Pool connected: %d, free: %d, waitting: %d, min: %d, max: %d >' % \
+            (self.connected_count, len(self.free_items), self.waittings, self.minsize, self.maxsize)
