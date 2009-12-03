@@ -52,7 +52,10 @@ class Task(object):
     def close(self):
         self.target.close()
         for t in self.trampolining_stack:
-            t.close()
+            try:
+                t.close()
+            except RuntimeError: # RuntimeError: generator ignored GeneratorExit
+                pass
         self.trampolining_stack = []
     
     def run(self):
