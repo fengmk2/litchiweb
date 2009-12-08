@@ -325,13 +325,15 @@ class HTTPReponse(object):
     default_charset = 'UTF-8'
     default_server = 'Litchi/0.1'
     
-    def __init__(self, body='', content_type=default_content_type, headers=None, status=httplib.OK, request=None):
+    def __init__(self, body='', content_type=None, headers=None, status=httplib.OK, request=None):
         self.body = body
         self.status = status
         self.headers = HTTPHeaders()
         self.headers["Server"] = self.default_server
         if headers is not None:
             self.headers.update(headers)
+        if content_type is None:
+            content_type = self.default_content_type
         self.content_type = content_type
         if self.content_type.startswith('text/'):
             self.headers['Content-Type'] = '%s; charset=%s' % (self.content_type, self.default_charset)
