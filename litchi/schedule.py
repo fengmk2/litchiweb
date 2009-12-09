@@ -86,7 +86,7 @@ class Task(object):
 #                print 'tramp', self.trampolining_stack
                 if not self.trampolining_stack: # top target, just raise, normal exit
                     raise
-                self.sendval = None
+#                self.sendval = None
                 self.target = self.trampolining_stack.pop()
             except: # support try .. finally..
                 if not self.trampolining_stack:
