@@ -138,6 +138,7 @@ class Scheduler(Singleton):
         self.sleep_waiting = {} # task sleeping
         self.event_waitting = defaultdict(deque) # event waitting list
         self.hub = get_hub()
+        self._start_sleep = False
         self.debug = debug
         if self.debug:
             self.set_debug(debug)
@@ -252,22 +253,24 @@ event waitting: %r
     
     def _check_sleeping_tasks(self):
         """Check sleeping tasks"""
-        while self.sleep_waiting:
-            now = time.time()
-            wakeups = []
-            for taskid, (start_time, seconds) in self.sleep_waiting.iteritems():
-                if now - start_time > seconds:
-                    # wake up the task
-                    wakeups.append(taskid)
-            for taskid in wakeups:
-                task = self.taskmap[taskid]
-                self.schedule(task)
-                del self.sleep_waiting[taskid]
+        while True:
+            if self.sleep_waiting:
+                now = time.time()
+                wakeups = []
+                for taskid, (start_time, seconds) in self.sleep_waiting.iteritems():
+                    if now - start_time > seconds:
+                        # wake up the task
+                        wakeups.append(taskid)
+                for taskid in wakeups:
+                    task = self.taskmap[taskid]
+                    self.schedule(task)
+                    del self.sleep_waiting[taskid]
             yield
     
     def wait_for_sleep(self, task, seconds):
-        if not self.sleep_waiting:
+        if not self._start_sleep:
             self.new(self._check_sleeping_tasks(), 'CheckSleepTask') # start sleep check
+            self._start_sleep = True
         self.sleep_waiting[task.taskid] = (time.time(), seconds)
         
     def wait_for_event(self, task, event):
